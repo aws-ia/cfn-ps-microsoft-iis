@@ -1,3 +1,11 @@
 // Include details about any licenses and how to sign up. Provide links as appropriate.
 
 There is no cost to use this Partner Solution, but you will be billed for any AWS services or resources that this Partner Solution deploys. For more information, refer to the https://fwd.aws/rA69w?[AWS Partner Solution General Information Guide^].
+
+This Partner Solution launches with Windows Server 2019 Core AMI. It includes the license for Windows Server, which is updated on a regular basis with the latest service pack. To modify the Windows Server version, edit the ImageId parameter in `/templates/asg-lch.template.yaml`. For a list of Windows images, run the following command from the AWS Command Line Interface (AWS CLI):
+[source,bash]
+....
+aws ssm get-parameters-by-path --path "/aws/service/ami-windows-latest" --region us-east-1
+....
+
+NOTE: For more information, see https://aws.amazon.com/windows/resources/licensing/[Microsoft Licensing on AWS].
