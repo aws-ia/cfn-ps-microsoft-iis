@@ -22,13 +22,13 @@ general:
     PublicSubnet3CIDR: 10.0.160.0/20
     VPCCIDR: 10.0.0.0/16
     IISServerInstanceType: 't3.2xlarge'
-    QSS3KeyPrefix: quickstart-microsoft-iis/
+    QSS3KeyPrefix: cfn-ps-microsoft-iis/
     RDGWCIDR: 10.0.0.0/16
     RDGWInstanceType: t2.large
     WebAccessCIDR: 10.0.0.0/16
     QSS3BucketName: $[taskcat_autobucket]
 project:
-  name: quickstart-microsoft-iis
+  name: cfn-ps-microsoft-iis
   owner: quickstart-eng@amazon.com
   regions:
   - us-east-1
