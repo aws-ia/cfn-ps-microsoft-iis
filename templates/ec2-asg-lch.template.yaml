@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Launch a scalable IIS environment based on a launch template, Application
+  Load Balancer and Auto Scaling Group. Scaling handled by Lifecycle Hooks, EventBridge,
+  and AWS Systems Manager. (qs-1r91fg4if)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Launch Template Configuration
+        Parameters:
+          - ImageId
+          - IISServerInstanceType
+      - Label:
+          default: Amazon EC2 Auto Scaling Configuration
+        Parameters:
+          - ASGDesiredCapacity
+          - ASGMinSize
+          - ASGMaxSize
+          - EventBridgeSSMAutoRole
+          - WorkloadSubnet1ID
+          - WorkloadSubnet2ID
+    ParameterLabels:
+      ImageId:
+        default: Amazon Machine Image (AMI) Id
+      IISServerInstanceType:
+        default: Instance Type
+      WorkloadSubnet1ID:
+        default: VPC Subnets
+      ASGMinSize:
+        default: Minimum Size
+      ASGMaxSize:
+        default: Maximum Size
+      ASGDesiredCapacity:
+        default: Desired Capacity
+      EventBridgeSSMAutoRole:
+        default: EventBridge Role
+      ALBSecurityGroup:
+        Default: Security group for ALB
+      ALBListenersSecurityGroup:
+        Default: Security group for autoscaling group
+Parameters:
+  ConfigBucket:
+    AllowedPattern: '^[a-z0-9]+[a-z0-9\.\-]*[a-z0-9]+$'
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Description: S3 bucket name where PowerShell DSC Mof files exist and HTML web files. Config bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '^[a-zA-Z0-9]+[a-zA-Z0-9\-]*\.[a-zA-Z0-9]+$'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN).
+    MaxLength: '64'
+    MinLength: '2'
+    Type: String
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Core-Base
+    Description: 'Enter an AMI Id. The default value is Windows Server 2019 Core:
+      /aws/service/ami-windows-latest/Windows_Server-2019-English-Core-Base.'
+  IISServerInstanceType:
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+      - m5.12xlarge
+      - m5.16xlarge
+      - m5.24xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.12xlarge
+      - c5.18xlarge
+      - c5.24xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+    Default: t3.2xlarge
+    Description: Amazon EC2 instance type for the IIS Server instances.
+    Type: String
+  DomainMemberSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Select EC2 security group to assign to the launch template.
+  VPCID:
+    Type: AWS::EC2::VPC::Id
+    Description: List of Virtual Private Cloud (VPC) Ids in your account.
+  ELBSchemeParameter:
+    Type: String
+    Default: internet-facing
+    AllowedValues:
+      - internet-facing
+      - internal
+    Description: Select whether the ELB is internet-facing (public) or internal (private).
+  ASGMinSize:
+    Default: 2
+    Type: Number
+    Description: Minimum instance size for the Auto Scaling Group.
+  ASGMaxSize:
+    Default: 4
+    Type: Number
+    Description: Maximum instance size for the Auto Scaling Group.
+  ASGDesiredCapacity:
+    Default: 2
+    Type: Number
+    Description: Desired capacity instance size for the Auto Scaling Group.
+  ELBSubnet1ID:
+    Description: ID of the ELB subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  ELBSubnet2ID:
+    Description: ID of the ELB subnet 2 in Availability Zone 2 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  WorkloadSubnet1ID:
+    Description: ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  WorkloadSubnet2ID:
+    Description: ID of the private subnet 2 in Availability Zone 2 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  ExecutionResourceArn:
+    AllowedPattern: '^arn:[^:]+:iam::\d{12}:role\/[\w\/\+\=\.\@\-]{1,512}$'
+    Description: "The IAM Role ARN that will be passed by Event Bridge to SSM Automation."
+    Type: String
+  AutoScalingGroupName:
+    AllowedPattern: '^[\w\W\s]+$'
+    Description: "The autoscaling group name"
+    MaxLength: "255"
+    MinLength: "2"
+    Type: String
+  SetupConfigurationDocName:
+    AllowedPattern: '^[a-zA-Z0-9\_\\\-\.]{3,128}$'
+    MaxLength: "128"
+    MinLength: "3"
+    Type: String
+    Description: Document name of AWS Systems Manager Automation Document for Setup Config to trigger using EventBridge.
+  RemoveConfigurationDocName:
+    AllowedPattern: ^[a-zA-Z0-9\_\\\-\.]{3,128}$
+    MaxLength: "128"
+    MinLength: "3"
+    Type: String
+    Description: Document name of AWS Systems Manager Automation Document for Removal Config to trigger using EventBridge.
+  SSMInstanceProfileName:
+    AllowedPattern: '^(arn:[^:]+:iam::\d{12}:role\/[\w+=,.@\/-]{1,512}|[\w+=,.@-]+)$'
+    Description: Instance profile name needed for AWS Systems Manager.
+    MaxLength: "255"
+    MinLength: "2"
+    Type: String
+  EventBridgeSSMAutoRole:
+    AllowedPattern: '^arn:[^:]+:iam::\d{12}:role\/[\w\/\+\=\.\@\-]{1,512}$'
+    Type: String
+    Description: EventBridge Role ARN to trigger SSM automation document
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Select security group to assign to the ALB.
+  ALBListenersSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Select security group for the launch template.
+Resources:
+  EC2LaunchTemplateResource:
+    Type: AWS::EC2::LaunchTemplate
+    DeletionPolicy: Delete
+    Properties:
+      LaunchTemplateData:
+        InstanceType: !Ref 'IISServerInstanceType'
+        ImageId: !Ref 'ImageId'
+        SecurityGroupIds:
+          - !Ref 'DomainMemberSecurityGroup'
+          - !Ref ALBListenersSecurityGroup
+        IamInstanceProfile:
+          Name: !Ref 'SSMInstanceProfileName'
+        TagSpecifications:
+           - 
+            ResourceType: 'instance'
+            Tags:
+              - Key: "DomainToJoin"
+                Value: !Ref "DomainDNSName"
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required
+  ALBResource:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: !Ref 'ELBSchemeParameter'
+      Subnets:
+        - !Ref 'ELBSubnet1ID'
+        - !Ref 'ELBSubnet2ID'
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+  ALBTargetGroupResource:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref 'VPCID'
+      HealthyThresholdCount: 5
+      HealthCheckTimeoutSeconds: 120
+      HealthCheckIntervalSeconds: 300
+      UnhealthyThresholdCount: 10
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '60'
+  ALBListenerResource:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref 'ALBResource'
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref 'ALBTargetGroupResource'
+  ASGResource:
+    DependsOn: ScaleUpEventBridgeResource
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroupName
+      MinSize: !Ref 'ASGMinSize'
+      MaxSize: !Ref 'ASGMaxSize'
+      DesiredCapacity: !Ref 'ASGDesiredCapacity'
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 60
+      Cooldown: '30'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref 'EC2LaunchTemplateResource'
+        Version: !GetAtt 'EC2LaunchTemplateResource.LatestVersionNumber'
+      VPCZoneIdentifier:
+        - !Ref 'WorkloadSubnet1ID'
+        - !Ref 'WorkloadSubnet2ID'
+      TargetGroupARNs:
+        - !Ref 'ALBTargetGroupResource'
+      LifecycleHookSpecificationList:
+        - LifecycleTransition: autoscaling:EC2_INSTANCE_LAUNCHING
+          LifecycleHookName: DomainJoinHook
+          DefaultResult: ABANDON
+          HeartbeatTimeout: 1200
+        - LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING
+          LifecycleHookName: DomainUnjoinHook
+          DefaultResult: ABANDON
+          HeartbeatTimeout: 600
+  ScaleUpEventBridgeResource:
+    Type: AWS::Events::Rule
+    Properties:
+      State: ENABLED
+      Description: Run Configuration Document that Joins Domain and Configures IIS.
+      EventPattern:
+        source:
+          - aws.autoscaling
+        detail-type:
+          - EC2 Instance-launch Lifecycle Action
+        detail:
+          AutoScalingGroupName:
+            - !Ref AutoScalingGroupName
+      Targets:
+        - Arn: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${SetupConfigurationDocName}:$DEFAULT'
+          Id: Windows-Scale-Out
+          RoleArn: !Ref EventBridgeSSMAutoRole
+          InputTransformer:
+            InputPathsMap:
+              InstanceId: $.detail.EC2InstanceId
+              ASGName: $.detail.AutoScalingGroupName
+              LCHName: $.detail.LifecycleHookName
+            InputTemplate: !Sub '{"AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
+  ScaleDownEventBridgeResource:
+    Type: AWS::Events::Rule
+    Properties:
+      State: ENABLED
+      Description: Run Removal Document that Un-joins Domain.
+      EventPattern:
+        source:
+          - aws.autoscaling
+        detail-type:
+          - EC2 Instance-terminate Lifecycle Action
+        detail:
+          AutoScalingGroupName:
+            - !Ref AutoScalingGroupName
+      Targets:
+        - Arn: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${RemoveConfigurationDocName}:$DEFAULT'
+          Id: Windows-Scale-In
+          RoleArn: !Ref EventBridgeSSMAutoRole
+          InputTransformer:
+            InputPathsMap:
+              InstanceId: $.detail.EC2InstanceId
+              ASGName: $.detail.AutoScalingGroupName
+              LCHName: $.detail.LifecycleHookName
+            InputTemplate: !Sub '{"AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
+Outputs:
+  ELBUrl:
+    Description: DNS name of the ELB.
+    Value: !GetAtt 'ALBResource.DNSName'
+  LaunchTemplateId:
+    Description: Launch template Id
+    Value: !Ref 'EC2LaunchTemplateResource'
+    Export:
+      Name: !Sub '${AWS::StackName}-LaunchTemplateId'
+  EC2ASGStackName:
+    Description: Stack name of the current stack
+    Value: !Sub "${AWS::StackName}"

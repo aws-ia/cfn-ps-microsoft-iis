@@ -1,33 +1,110 @@
+general:
+  s3_regional_buckets: true
+  parameters:
+    ADServer1InstanceType: m5.xlarge
+    ADServer1NetBIOSName: DC1
+    ADServer1PrivateIP: 10.0.0.10
+    ADServer2InstanceType: m5.xlarge
+    ADServer2NetBIOSName: DC2
+    ADServer2PrivateIP: 10.0.32.10
+    DomainAdminPassword: $[taskcat_genpass_16]
+    DomainAdminUser: Admin
+    DomainDNSName: test.com
+    DomainNetBIOSName: test
+    ECSImage: "microsoft/iis"
+    NumberOfAZs: '2'
+    NumberOfRDGWHosts: '0'
+    PrivateSubnet1CIDR: 10.0.0.0/19
+    PrivateSubnet2CIDR: 10.0.32.0/19
+    PrivateSubnet3CIDR: 10.0.64.0/19
+    PublicSubnet1CIDR: 10.0.128.0/20
+    PublicSubnet2CIDR: 10.0.144.0/20
+    PublicSubnet3CIDR: 10.0.160.0/20
+    VPCCIDR: 10.0.0.0/16
+    IISServerInstanceType: 't3.2xlarge'
+    QSS3KeyPrefix: quickstart-microsoft-iis/
+    RDGWCIDR: 10.0.0.0/16
+    RDGWInstanceType: t2.large
+    WebAccessCIDR: 10.0.0.0/16
+    QSS3BucketName: $[taskcat_autobucket]
 project:
-  name: cfn-sample-template
-  owner: quickstart@amazon.com
-  package_lambda: false
+  name: quickstart-microsoft-iis
+  owner: quickstart-eng@amazon.com
   regions:
-  - ap-northeast-1
-  - ap-northeast-2
-  - ap-southeast-1
-  - ap-southeast-2
-  - eu-central-1
-  - eu-west-1
-  - sa-east-1
   - us-east-1
-  - us-west-1
   - us-west-2
+  - ap-northeast-1
+  - ap-southeast-1
+  - ca-central-1
+  - eu-central-1
+  - us-west-1
+  - eu-west-2
+  build_submodules: false
+  package_lambda: false
 tests:
-  sample:
-    parameters:
-      Param1: 'Inputs to Stack'
-      # Examples: of other taskcat dynamic input parameters for more into see http://taskcat.io
-      #
-      #      AvailabilityZones: $[taskcat_genaz_3]
-      #      ByteValue: 1
-      #      PasswordA: $[taskcat_genpass_8A]
-      #      PasswordB: $[taskcat_genpass_32S]
-      #      RandomNumber: $[taskcat_random-numbers]
-      #      RandomString: $[taskcat_random-string]
-      #      StackName: TestStack
-      #      UUID: $[taskcat_genuuid]
-      #
+#  test-scenario1:
+#    template: ./templates/iis-main.template.yaml
+#    regions:
+#    - us-east-1
+#    - eu-west-1
+#    parameters:
+#      ADScenarioType: AWS Directory Service for Microsoft AD (Enterprise Edition)
+#      AvailabilityZones: $[taskcat_genaz_2]
+#      KeyPairName: $[taskcat_getkeypair]
+#      QSS3BucketRegion: $[taskcat_current_region]
+#      ELBSchemeParameter: internet-facing
+#      ASGDesiredCapacity: 2
+#      ASGMaxSize: 3
+#      ASGMinSize: 1
+#      WebAccessCIDR: 10.0.0.0/16
+#      DeploymentType: ECS
+#  test-scenario2:
+#    template: ./templates/iis-main.template.yaml
+#    regions:
+#    - ap-southeast-1
+#    - us-east-2
+#    parameters:
+#      ADScenarioType: Microsoft AD on Amazon EC2
+#      AvailabilityZones: $[taskcat_genaz_2]
+#      KeyPairName: $[taskcat_getkeypair]
+#      QSS3BucketRegion: $[taskcat_current_region]
+#      ELBSchemeParameter: internet-facing
+#      ASGDesiredCapacity: 4
+#      ASGMaxSize: 5
+#      ASGMinSize: 2
+#      WebAccessCIDR: 10.0.0.0/16
+#      DeploymentType: ECS
+  test-scenario3:
+    template: ./templates/iis-main.template.yaml
     regions:
-    - us-east-2
-    template: templates/another-workload.template.yaml
+    - ca-central-1
+    - eu-west-2
+    parameters:
+      ADScenarioType: AWS Directory Service for Microsoft AD (Enterprise Edition)
+      AvailabilityZones: $[taskcat_genaz_2]
+      KeyPairName: $[taskcat_getkeypair]
+      QSS3BucketName: $[taskcat_autobucket]
+      QSS3BucketRegion: $[taskcat_current_region]
+      ELBSchemeParameter: internet-facing
+      ASGDesiredCapacity: 3
+      ASGMaxSize: 4
+      ASGMinSize: 2
+      WebAccessCIDR: 10.0.0.0/16
+      DeploymentType: EC2
+  test-scenario4:
+    template: ./templates/iis-main.template.yaml
+    regions:
+    - eu-central-1
+    - ap-northeast-1
+    parameters:
+      ADScenarioType: AWS Directory Service for Microsoft AD (Enterprise Edition)
+      ASGDesiredCapacity: 3
+      ASGMaxSize: 4
+      ASGMinSize: 2
+      AvailabilityZones: $[taskcat_genaz_2]
+      ELBSchemeParameter: internet-facing
+      KeyPairName: $[taskcat_getkeypair]
+      QSS3BucketName: $[taskcat_autobucket]
+      QSS3BucketRegion: $[taskcat_current_region]
+      WebAccessCIDR: 10.0.0.0/16
+      DeploymentType: EC2

@@ -1,0 +1,72 @@
+---
+schemaVersion: "0.3"
+description: "Remove EC2 Instances from AD Domain"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  ASGName:
+    description: "Auto Scaling Group Name"
+    type: "String"
+  ConfigBucket:
+    description: "Bucket Containing Mof Files"
+    type: "String"
+  InstanceId:
+    description: "Id of Instance"
+    type: "String"
+  LCHName:
+    description: "Life Cycle Hook Name"
+    type: "String"
+  AutomationAssumeRole:
+    default: ""
+    description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    type: "String" 
+mainSteps:
+  - name: "RemoveFromDomain"
+    action: aws:runCommand
+    onFailure: step:abandonHookAction
+    inputs:
+      DocumentName: AWS-ApplyDSCMofs
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        MofsToApply:
+          - !Sub "s3:{{ConfigBucket}}:DomainRemove.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:DomainJoinSample
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "True"
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+  - name: "completeHookAction"
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: autoscaling
+      Api: CompleteLifecycleAction
+      AutoScalingGroupName: "{{ASGName}}"
+      InstanceId: "{{InstanceId}}"
+      LifecycleActionResult: CONTINUE
+      LifecycleHookName: "{{LCHName}}"
+  - name: "abandonHookAction"
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: autoscaling
+      AutoScalingGroupName: "{{ASGName}}"
+      InstanceId: "{{InstanceId}}"
+      LifecycleActionResult: ABANDON
+      LifecycleHookName: "{{LCHName}}"
+

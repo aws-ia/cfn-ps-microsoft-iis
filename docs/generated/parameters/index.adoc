@@ -1,0 +1,6 @@
+
+=== Deploy into a new VPC
+include::iis-main.template.adoc[]
+
+=== Deploy into an existing VPC
+include::iis-workload.template.adoc[]
