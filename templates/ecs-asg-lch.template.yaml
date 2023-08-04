@@ -1,0 +1,517 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template deploys an ECS cluster and an auto-scaling group of Windows Server
+  with Containers EC2 instances. This template is intended to be installed into
+  an existing VPC that was built using the sample reference architecture titled:
+  "Modular and scalable VPC architecture" **WARNING** This template creates
+  Amazon EC2 Windows instance and related resources. You will be billed for the AWS
+  resources used if you create a stack from this template. (qs-1spjhsd41)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Amazon ECS configuration
+        Parameters:
+          - ECSClusterName
+          - ECSImage
+      - Label:
+          default: Roles/Profiles/Arns
+        Parameters:
+          - AutoscalingRole
+          - ECSServiceRole
+          - ECSTaskRole
+          - ExecutionResourceArn
+          - AutoScalingGroupName
+          - EventBridgeSSMAutoRole
+          - SSMInstanceProfileName
+      - Label:
+          default: Amazon EC2 configuration
+        Parameters:
+          - ImageId
+          - IISServerInstanceType
+      - Label:
+          default: Security Groups
+        Parameters:
+          - ALBSecurityGroup
+          - ALBListenersSecurityGroup
+          - DomainMemberSecurityGroup
+      - Label:
+          default: Auto Scaling / ELB Configuration
+        Parameters:
+          - ASGDesiredCapacity
+          - ASGMinSize
+          - ASGMaxSize
+          - EventBridgeSSMAutoRole
+          - ELBSubnet1ID
+          - ELBSubnet2ID
+          - ELBSchemeParameter
+          - WorkloadSubnet1ID
+          - WorkloadSubnet2ID
+          - VPCID
+      - Label:
+          default: Buckets / SSM
+        Parameters:
+          - ConfigBucket
+          - RemoveConfigurationDocName
+          - SetupConfigurationDocName
+      - Label:
+          default: Active Directory
+        Parameters:
+          - DomainDNSName
+    ParameterLabels:
+      ALBSecurityGroup:
+        default: Security Group for ALB
+      ALBListenersSecurityGroup:
+        default: Security group for listeners of ALB
+      ASGDesiredCapacity:
+        default: Desired capacity for ASG
+      ASGMinSize:
+        default: Min size for ASG
+      ASGMaxSize:
+        default: Max size for ASG
+      AutoscalingRole:
+        default: Autoscaling Group Role
+      ConfigBucket:
+        default: Buckets location of SSM scripts
+      DomainMemberSecurityGroup:
+        default: Security group ID for AD domain members
+      DomainDNSName:
+        default: Domain DNS name
+      ECSClusterName:
+        default: Name of ECS cluster
+      ECSImage:
+        default: ECS Container Image
+      ECSServiceRole:
+        default: Name of ECS Service Role
+      ECSTaskRole:
+        default: Name of ECS Task Role
+      EventBridgeSSMAutoRole:
+        default: EventBridge SSM Role
+      ELBSubnet1ID:
+        default: Subnet for ELB
+      ELBSubnet2ID:
+        default: Subnet for ELB
+      ELBSchemeParameter:
+        default: ELB Scheme
+      ExecutionResourceArn:
+        default: Execution resource arn
+      AutoScalingGroupName:
+        default: Autoscaling Group Name
+      IISServerInstanceType:
+        default: ECS EC2 instance type
+      SetupConfigurationDocName:
+        default: Setup Configuration Doc Name
+      SSMInstanceProfileName:
+        default: SSM Instance Profile Name
+      RemoveConfigurationDocName:
+        default: SSM Remove Configuration Doc Name
+      WorkloadSubnet1ID:
+        default: Subnet ID for workload
+      WorkloadSubnet2ID:
+        default: Subnet ID for workload
+Parameters:
+  ALBSecurityGroup:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  ALBListenersSecurityGroup:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  ConfigBucket:
+    AllowedPattern: '^[a-z0-9]+[a-z0-9\.\-]*[a-z0-9]+$'
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Description: S3 bucket name where PowerShell DSC Mof files exist and HTML web files. Config bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  DomainMemberSecurityGroup:
+    Description: ID of the domain member security group (e.g., sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  ECSClusterName:
+    AllowedPattern: '^[\w\-]+$'
+    Description: Name of ECS cluster.
+    MaxLength: "255"
+    MinLength: "2"
+    Type: String
+  ELBSubnet1ID:
+    Description: ID of the ELB subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  ELBSubnet2ID:
+    Description: ID of the ELB subnet 2 in Availability Zone 2 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  IISServerInstanceType:
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.8xlarge
+      - m5.12xlarge
+      - m5.16xlarge
+      - m5.24xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.12xlarge
+      - c5.18xlarge
+      - c5.24xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+    Default: t3.2xlarge
+    Description: Amazon EC2 instance type for the IIS Server instances.
+    Type: String
+  ImageId:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-ECS_Optimized'
+  ELBSchemeParameter:
+    Type: String
+    Default: internet-facing
+    AllowedValues:
+      - internet-facing
+      - internal
+    Description: Select whether the ELB is internet-facing (public) or internal (private).
+  ASGMinSize:
+    Default: 2
+    Type: Number
+    Description: Minimum instance size for the Auto Scaling Group.
+  ASGMaxSize:
+    Default: 4
+    Type: Number
+    Description: Maximum instance size for the Auto Scaling Group.
+  ASGDesiredCapacity:
+    Default: 2
+    Type: Number
+    Description: Desired capacity instance size for the Auto Scaling Group.
+  EventBridgeSSMAutoRole:
+    AllowedPattern: '^arn:[^:]+:iam::\d{12}:role\/[\w\/\+\=\.\@\-]{1,512}$'
+    Type: String
+    Description: EventBridge Role ARN to trigger SSM automation document
+  AutoscalingRole:
+    AllowedPattern: '^arn:[^:]+:iam::\d{12}:role\/[\w\/\+\=\.\@\-]{1,512}$'
+    Type: String
+    Description: Name for role for autoscaling group
+  DomainDNSName:
+    AllowedPattern: '^[a-zA-Z0-9]+[a-zA-Z0-9\-]*\.[a-zA-Z0-9]+$'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN).
+    MaxLength: '64'
+    MinLength: '2'
+    Type: String
+  ECSServiceRole:
+    AllowedPattern: '^(arn:[^:]+:iam::\d{12}:role\/[\w+=,.@\/-]{1,512}|[\w+=,.@\/-]+)$'
+    Type: String
+    Description: ECS Service Role
+  ECSTaskRole:
+    AllowedPattern: '^arn:[^:]+:iam::\d{12}:role\/[\w\/\+\=\.\@\-]{1,512}$'
+    Type: String
+    Description: ECS Task Role  
+  ExecutionResourceArn:
+    AllowedPattern: '^arn:[^:]+:iam::\d{12}:role\/[\w\/\+\=\.\@\-]{1,512}$'
+    Description: "The IAM Role ARN that will be passed by Event Bridge to SSM Automation."
+    Type: String
+  AutoScalingGroupName:
+    AllowedPattern: '^[\w\W\s]+$'
+    Description: "Autoscaling group name"
+    Type: String
+  ECSImage:
+    AllowedPattern: '^[\w\-\:\.\#\/]*$'
+    Default: "microsoft/iis"
+    Description: ECS Container Image for Windows. Only needed if ECS deployment type is used
+    MaxLength: "255"
+    MinLength: "2"
+    Type: String
+  RemoveConfigurationDocName:
+    AllowedPattern: ^[\w\\\-\.]{3,128}$
+    MaxLength: "128"
+    MinLength: "3"
+    Type: String
+  SetupConfigurationDocName:
+    AllowedPattern: '^[\w\\\-\.]{3,128}$'
+    MaxLength: "128"
+    MinLength: "3"
+    Type: String
+  SSMInstanceProfileName:
+    AllowedPattern: '^(arn:[^:]+:iam::\d{12}:role\/[\w+=,.@\/-]{1,512}|[\w+=,.@-]+)$'
+    Description: Instance profile name needed for AWS Systems Manager.
+    MaxLength: "255"
+    MinLength: "2"
+    Type: String
+  VPCID:
+    Type: AWS::EC2::VPC::Id
+    Description: List of Virtual Private Cloud (VPC) Ids in your account.
+  WorkloadSubnet1ID:
+    Description: ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  WorkloadSubnet2ID:
+    Description: ID of the private subnet 2 in Availability Zone 2 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id  
+Resources:
+  CloudwatchLogsGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '/aws/ecs/iis-quickstart/TaskDefinition-${AWS::StackName}'
+  ALBResource:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: !Ref 'ELBSchemeParameter'
+      Subnets: 
+        - !Ref 'ELBSubnet1ID'
+        - !Ref 'ELBSubnet2ID'
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+  ALBTargetGroupResource:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VPCID
+      HealthCheckIntervalSeconds: 300
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 100
+      HealthyThresholdCount: 5
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroupResource
+      LoadBalancerArn: !Ref ALBResource
+      Port: 80
+      Protocol: HTTP
+  ASGResource:
+    DependsOn: [ScaleUpEventBridgeResource, ECSCluster]
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroupName
+      MinSize: !Ref 'ASGMinSize'
+      MaxSize: !Ref 'ASGMaxSize'
+      DesiredCapacity: !Ref 'ASGDesiredCapacity'
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref ECSLaunchConfiguration
+      VPCZoneIdentifier: 
+        - !Ref 'WorkloadSubnet1ID'
+        - !Ref 'WorkloadSubnet2ID'
+      TargetGroupARNs:
+        - !Ref ALBTargetGroupResource
+      LifecycleHookSpecificationList:
+        - LifecycleTransition: autoscaling:EC2_INSTANCE_LAUNCHING
+          LifecycleHookName: DomainJoinHook
+          DefaultResult: ABANDON
+          HeartbeatTimeout: 1200
+        - LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING
+          LifecycleHookName: DomainUnjoinHook
+          DefaultResult: ABANDON
+          HeartbeatTimeout: 600
+      Tags:
+        - Key: DomainToJoin
+          Value: !Ref DomainDNSName
+          PropagateAtLaunch: true
+  ScaleUpEventBridgeResource:
+    Type: AWS::Events::Rule
+    Properties:
+      State: ENABLED
+      Description: Run Configuration Document that Joins Domain
+      EventPattern:
+        source:
+          - aws.autoscaling
+        detail-type:
+          - EC2 Instance-launch Lifecycle Action
+        detail:
+          AutoScalingGroupName: 
+            - !Ref AutoScalingGroupName
+      Targets:
+        - Arn: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${SetupConfigurationDocName}:$DEFAULT'
+          Id: Windows-Scale-Out
+          RoleArn: !Ref EventBridgeSSMAutoRole
+          InputTransformer:
+            InputPathsMap:
+              InstanceId: $.detail.EC2InstanceId
+              ASGName: $.detail.AutoScalingGroupName
+              LCHName: $.detail.LifecycleHookName
+            InputTemplate: !Sub '{"AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
+  ScaleDownEventBridgeResource:
+    Type: AWS::Events::Rule
+    Properties:
+      State: ENABLED
+      Description: Run Removal Document that Un-joins Domain.
+      EventPattern:
+        source:
+          - aws.autoscaling
+        detail-type:
+          - EC2 Instance-terminate Lifecycle Action
+        detail:
+          AutoScalingGroupName:
+            - !Ref AutoScalingGroupName
+      Targets:
+        - Arn: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${RemoveConfigurationDocName}:$DEFAULT'
+          Id: Windows-Scale-In
+          RoleArn: !Ref EventBridgeSSMAutoRole
+          InputTransformer:
+            InputPathsMap:
+              InstanceId: $.detail.EC2InstanceId
+              ASGName: $.detail.AutoScalingGroupName
+              LCHName: $.detail.LifecycleHookName
+            InputTemplate: !Sub '{"AutomationAssumeRole":["${ExecutionResourceArn}"],"InstanceId":[<InstanceId>],"ASGName":[<ASGName>],"LCHName":[<LCHName>],"ConfigBucket":["${ConfigBucket}"]}'
+  ECSALBListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroupResource
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /
+      ListenerArn: !Ref ALBListener
+      Priority: 1
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ECSClusterName
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+  ECSLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Select [2, !Split ["\"" , !Select [1, !Split [ "image_id", !Ref ImageId ] ] ] ]
+      InstanceType: !Ref IISServerInstanceType
+      SecurityGroups: 
+        - !Ref DomainMemberSecurityGroup
+        - !Ref ALBListenersSecurityGroup
+      IamInstanceProfile: !Ref SSMInstanceProfileName
+  EcsService:
+    Type: 'AWS::ECS::Service'
+    DependsOn: ALBListener
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: !Ref 'ASGDesiredCapacity'
+      LoadBalancers:
+        - ContainerName: IIS-App
+          ContainerPort: 80
+          TargetGroupArn: !Ref ALBTargetGroupResource
+      Role: !Ref ECSServiceRole
+      TaskDefinition: !Ref TaskDefinition
+    
+  ServiceScalingTarget:
+    Type: 'AWS::ApplicationAutoScaling::ScalableTarget'
+    Properties:
+      MaxCapacity: !Ref 'ASGMaxSize'
+      MinCapacity: !Ref 'ASGMinSize'
+      ResourceId: !Join 
+        - ''
+        - - service/
+          - !Ref ECSCluster
+          - /
+          - !GetAtt 
+            - EcsService
+            - Name
+      RoleARN: !Ref AutoscalingRole
+      ScalableDimension: 'ecs:service:DesiredCount'
+      ServiceNamespace: ecs
+  ServiceScalingPolicy:
+    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
+    Properties:
+      PolicyName: AStepPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: PercentChangeInCapacity
+        Cooldown: 300
+        MetricAggregationType: Average
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 200
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: !Sub TaskDefinition-${AWS::StackName}
+      Volumes:
+        - 
+          Host: 
+            SourcePath: "c:\\Windows\\Temp"
+          Name: temp
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: IIS-App
+          Cpu: 256
+          Essential: true
+          Image: !Ref ECSImage
+          Command: 
+            - |
+              Try {
+                Copy-Item -Path temp\index.html -Destination C:\inetpub\wwwroot\ -Force
+                Write-Output "Copying index to wwwroot"
+              }Catch [System.Exception] {
+                Write-Output "Failed to copy webpage c:\\windows\\temp\\index.html $_"
+                Exit 1
+              };
+            - |
+              C:\ServiceMonitor.exe w3svc
+          EntryPoint:
+            - powershell
+            - '-Command'
+          Memory: 512
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudwatchLogsGroup
+              awslogs-region: !Ref 'AWS::Region'
+          PortMappings:
+            - ContainerPort: 80
+          MountPoints: 
+            - 
+              SourceVolume: "temp"
+              ContainerPath: "c:\\temp"
+              ReadOnly: false
+Outputs:
+  Cluster:
+    Description: A reference to the ECS cluster
+    Value: !Ref ECSCluster
+  TaskDefinition:
+    Description: A reference to the TaskDefinition
+    Value: !Ref TaskDefinition
+  ECSALB:
+    Description: ALB DNS URL
+    Value: !GetAtt ALBResource.DNSName
+  ECSASGStackName:
+    Description: Stack name of the current stack
+    Value: !Sub "${AWS::StackName}"

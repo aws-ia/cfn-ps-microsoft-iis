@@ -1,28 +1,30 @@
-:xrefstyle: short
-
-Deploying this Partner Solution with default parameters builds the following {partner-product-short-name} environment in the
+Deploying this Partner Solution for a new virtual private cloud (VPC) with
+default parameters builds the following {partner-product-short-name} environment in the
 AWS Cloud.
 
-// Replace this example diagram with your own. Follow our wiki guidelines: https://w.amazon.com/bin/view/AWS_Quick_Starts/Process_for_PSAs/#HPrepareyourarchitecturediagram. Upload your source PowerPoint file to the GitHub {deployment name}/docs/images/ directory in its repository.
-
+// Replace this example diagram with your own. Send us your source PowerPoint file. Be sure to follow our guidelines here : http://(we should include these points on our contributors giude)
+:xrefstyle: short
 [#architecture1]
 .Partner Solution architecture for {partner-product-short-name} on AWS
-image::../docs/deployment_guide/images/architecture_diagram.png[Architecture]
+[link=images/architecture_diagram.png]
+image::../docs/deployment_guide/images/architecture_diagram.png[Architecture,width=100%,height=100%]
 
-As shown in <<architecture1>>, this Partner Solution sets up the following:
+As shown in <<architecture1>>, the Partner Solution sets up the following:
 
 * A highly available architecture that spans two Availability Zones.*
-* A virtual private cloud (VPC) configured with public and private subnets, according to AWS
-best practices, to provide you with your own virtual network on AWS.*
+* A VPC configured with public and private subnets according to AWS best practices, to provide you with your own virtual network on AWS.*
 * In the public subnets:
-** Managed network address translation (NAT) gateways to allow outbound
-internet access for resources in the private subnets.*
-** A Linux bastion host in an Auto Scaling group to allow inbound Secure
-Shell (SSH) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in public and private subnets.*
+** Managed network address translation (NAT) gateways to allow internet access for resources in the private subnets.*
+** Elastic Load Balancers to distribute traffic across EC2 instances.
+** Remote Desktop (RD) gateways in an Auto Scaling group.
 * In the private subnets:
-** <item>.
-** <item>.
-// Add bullet points for any additional components that are included in the deployment. Ensure that the additional components are shown in the architecture diagram. End each bullet with a period.
-* <describe any additional components>.
+** Auto Scaling group of EC2 instances into which Microsoft IIS is deployed.
+** AWS Directory Service for Microsoft Active Directory.
+// Add bullet points for any additional components that are included in the deployment. Make sure that the additional components are also represented in the architecture diagram. End each bullet with a period.
+* Amazon EventBridge, providing the rules that trigger automation routines in response to Auto Scaling events.
+* AWS Systems Manager to store automation documents.
+* AWS Identity and Access Management (IAM) roles.
+* Security groups to control traffic to your EC2 instances.
+* Amazon Simple Storage Service (Amazon S3) bucket for storing MOP files.
 
-[.small]#* The template that deploys this Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+[.small]#*The template that deploys the Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#

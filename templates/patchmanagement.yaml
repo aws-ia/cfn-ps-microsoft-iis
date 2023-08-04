@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Launch a Resource Group. (qs-1spjhsd5s)
+Parameters:
+  ResourceGroupKey:
+    Default: 'ASGName'
+    Type: String
+    Description: The key name for the tag for the resource group
+  ResourceGroupValue:
+    Type: String
+    Description: The value name for the tag for the resource group
+  SSMPatchBaselineName:
+    Type: String
+    Description: The name of the patch baseline.
+  SSMPatchBaselinePatchGroupName:
+    Type: String
+    Description: The name of the patch group that should be registered with the patch
+      baseline.
+  SSMPatchBaselineWinVersion:
+    Type: String
+    Description: Defines the operating system version the patch baseline applies to.
+      The Default value is WindowsServer2019.
+    Default: WindowsServer2019
+    AllowedValues:
+      - WindowsServer2019
+      - WindowsServer2016
+      - WindowsServer2012R2
+      - WindowsServer2012
+      - WindowsServer2008R2
+      - WindowsServer2008
+  SSMPatchBaselineApproveAfterDays:
+    Type: Number
+    Description: The number of days after the release date of each patch matched by
+      the rule that the patch is marked as approved in the patch baseline.
+    MinValue: '0'
+    MaxValue: '100'
+Resources:
+  ResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: "IIS-Demo-Stack"
+      Description: "A resource group that is created via CFN"
+      ResourceQuery:
+        Type:
+          "TAG_FILTERS_1_0" 
+        Query:
+          ResourceTypeFilters: 
+            - "AWS::EC2::Instance" 
+          TagFilters:
+            - 
+              Key: !Ref ResourceGroupKey
+              Values: 
+                - !Ref ResourceGroupValue
+  SSMPatchBaselineResource:
+    Type: AWS::SSM::PatchBaseline
+    Properties:
+      Name: !Ref 'SSMPatchBaselineName'
+      Description: Baseline containing all updates approved for Windows instances
+      OperatingSystem: WINDOWS
+      PatchGroups:
+        - !Ref 'SSMPatchBaselinePatchGroupName'
+      ApprovalRules:
+        PatchRules:
+          - PatchFilterGroup:
+              PatchFilters:
+                - Values:
+                    - Critical
+                    - Important
+                    - Moderate
+                  Key: MSRC_SEVERITY
+                - Values:
+                    - SecurityUpdates
+                    - CriticalUpdates
+                  Key: CLASSIFICATION
+                - Values:
+                    - !Ref 'SSMPatchBaselineWinVersion'
+                  Key: PRODUCT
+            ApproveAfterDays: !Ref 'SSMPatchBaselineApproveAfterDays'
+            ComplianceLevel: CRITICAL
+  SSMMaintenanceWindowResource:
+    Type: AWS::SSM::MaintenanceWindow
+    Properties:
+      AllowUnassociatedTargets: false
+      Cutoff: 1
+      Description: Maintenance Window to update Windows Server
+      Duration: 2
+      Name: WindowsUpdateMaintenanceWindow
+      Schedule: cron(0 1 ? * SAT#3 *)
+      ScheduleTimezone: US/Eastern
+  SSMMaintenanceWindowTargetResource:
+    Type: AWS::SSM::MaintenanceWindowTarget
+    Properties:
+      WindowId: !Ref 'SSMMaintenanceWindowResource'
+      Name: WindowsServerPatchingTargets
+      Description: Created from CloudFormation Template.
+      ResourceType: INSTANCE
+      Targets:
+        - Key: tag:Patch Group
+          Values:
+            - !Ref 'SSMPatchBaselinePatchGroupName'
+  SSMMaintenanceWindowTaskResource:
+    Type: AWS::SSM::MaintenanceWindowTask
+    Properties:
+      Name: WindowsServerPatchingTask
+      Description: Created from CloudFormation Template.
+      MaxConcurrency: '50'
+      MaxErrors: '0'
+      Priority: 1
+      TaskType: RUN_COMMAND
+      WindowId: !Ref 'SSMMaintenanceWindowResource'
+      TaskArn: AWS-RunPatchBaseline
+      Targets:
+        - Key: WindowTargetIds
+          Values:
+            - !Ref 'SSMMaintenanceWindowTargetResource'
+      TaskInvocationParameters:
+        MaintenanceWindowRunCommandParameters:
+          Parameters:
+            Operation:
+              - Install
+            SnapshotId:
+              - '{{WINDOW_EXECUTION_ID}}'
+  ScanForPatches:
+    Type: AWS::SSM::Association
+    Properties:
+      WaitForSuccessTimeoutSeconds: 300
+      Name: AWS-RunPatchBaseline
+      Targets:
+        - Key: !Sub "tag:${ResourceGroupKey}"
+          Values:
+           - !Ref "ResourceGroupValue"
+      MaxErrors: 1
+      MaxConcurrency: 1
+      Parameters:
+        Operation:
+          - Scan

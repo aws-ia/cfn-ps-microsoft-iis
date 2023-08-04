@@ -1,3 +1,123 @@
-// Include any postdeployment steps here, such as steps necessary to test that the deployment was successful. If there are no postdeployment steps, leave this file empty.
+// Add steps as necessary for accessing the software, post-configuration, and testing. Don’t include full usage instructions for your software, but add links to your product documentation for that information.
+//Should any sections not be applicable, remove them
 
-== Postdeployment steps
+== Post-deployment steps
+
+=== Run Windows Updates
+
+In order to ensure the deployed servers' operating systems and installed applications have the latest Microsoft updates, run Windows Update on each server.
+
+1. Create an RDP session from the Remote Desktop Gateway server to each deployed server.
+2. Open the *Settings* application.
+3. Open *Update & Security*.
+4. Click *Check for updates*.
+5. Install any updates and reboot if necessary.
+
+=== Testing the deployment
+// If steps are required to test the deployment, add them here. If not, remove the heading
+:xrefstyle: short
+To test the deployment, ensure that your IP address is entered in the WebAccessCIDR parameter. If it is, you can enter the URL of your Elastic Load Balancer (part of the output of the WebAutoScaleStack) into a web browser. The window shown in <<#sample-web-page>> is displayed.
+
+[#sample-web-page]
+.Test page
+[link=images/SampleWebPage.png]
+image::../docs/deployment_guide/images/SampleWebPage.png[Sample Web Page,width=100%,height=100%]
+
+NOTE: If you are unable to connect to the test page, review the security groups for the Elastic Load Balancers and verify that the CIDR ranges are correct.
+
+== Using AWS Systems Manager Agent
+
+This Partner Solution deploys AWS Systems Manager Agent (SSM Agent) on all EC2 instances. With SSM Agent, you can use the Windows remote desktop protocol (RDP) to connect to EC2 instances without the need for an RDP bastion host or opening inbound port 3389 with Session Manager. This section explains the requirements for using this feature and how to connect to an EC2 instance of Windows Server using RDP.
+
+See the following sites for more information about these AWS services and software:
+
+* https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html[What is Systems Manager?]
+* https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html[AWS Systems Manager Session Manager]
+* https://docs.aws.amazon.com/systems-manager/latest/userguide/prereqs-ssm-agent.html[AWS Systems Manager Agent (SSM Agent)]
+
+=== Prerequisites
+ * https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html[AWS Command Line Interface] must be installed on your desktop.
+ * https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html#cli-quick-configuration[AWS Command Line Interface (AWS CLI)] must be configured with security credentials for your AWS account.
+ * https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html#install-plugin-windows[Session Manager plugin] for AWS CLI must be installed.
+ * SSM Agent must be installed on EC2 instances.*
+ * Instance role attached allowing access to Systems Manager API.*
+
+*These prerequisites are completed automatically as part of the Partner Solution deployment.
+
+=== Connecting to a Windows instance with RDP
+
+:xrefstyle: short
+. Start a port forwarding session. 
+.. Navigate to the https://console.aws.amazon.com/ec2/[EC2 Console], and note the instance ID (for example, "i-1234567890abcdef0").
+.. Run the following command in the AWS CLI by providing your target instance ID after the --target parameter. (See <<start-session>>.)
+
+[source,bash]
+....
+aws ssm start-session --target "<your-instance-id>" --document-name AWS-StartPortForwardingSession --parameters "portNumber"=["3389"],"localPortNumber"=["56788"]
+....
+
+[#start-session]
+.CLI Command to port forward a local port to RDP on an EC2 Instance
+[link=images/clisessionmanager.png]
+image::../docs/deployment_guide/images/clisessionmanager.png[Start Session,width=100%,height=100%]
+
+[start=2]
+. When the session is established, open the Remote Desktop application, and enter localhost:56788 (or any port number that's not currently in use.)
+. Choose *Connect*.
+
+[#rdp-session]
+.Connecting to localhost:56788
+[link=images/rdpgraphic.png]
+image::../docs/deployment_guide/images/rdpgraphic.png[RDP,width=100%,height=100%]
+
+[start=3]
+. When the client prompts you for credentials, enter the appropriate password to log in.
+
+[#connected-EC2]
+.Connected to EC2 instance with RDP
+[link=images/loggedin.png]
+image::../docs/deployment_guide/images/loggedin.png[RDP,width=100%,height=100%]
+
+[start=4]
+. When you finish, end your Remote Desktop session and disconnect.
+
+[#disconnected-session]
+.Disconnect Session
+[link=images/rdp5.png]
+image::../docs/deployment_guide/images/rdp5.png[RDP,width=100%,height=100%]
+
+== Post-deployment steps
+If you want to modify this Partner Solution see the https://github.com/aws-quickstart/quickstart-microsoft-iis/blob/main/templates/automation-parts.template.yaml[automation-parts.template.yaml] template. This AWS Cloudformation template uploads the MOF files and creates the automation documents that are triggered by the Auto Scaling group's lifecycle hooks. 
+
+The following code block demonstrates a step in the AWS Systems Manager automation document. These steps under the *main step* section can be modified to support your own automation steps and configuration.
+
+[source,yaml]
+....
+- name: "setNameTag"
+  action: aws:runCommand
+  onFailure: "step:abandonHookAction"
+  inputs:
+    DocumentName: AWS-RunPowerShellScript
+    InstanceIds: 
+      - "{{InstanceId}}"
+    CloudWatchOutputConfig:
+      CloudWatchOutputEnabled: "true"
+      CloudWatchLogGroupName: "/QuickStart/SetupConfiguration"
+    Parameters:
+      commands: 
+        - |
+           Import-Module AWSPowerShell
+           $instanceid = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)
+           New-EC2Tag -Resource $instanceId -Tag @{Key="Name";Value=$env:COMPUTERNAME}
+....
+
+NOTE: For more information about automation documents, see https://docs.aws.amazon.com/systems-manager/latest/userguide/automation-actions.html[Systems Manager Automation actions reference].
+
+== Best practices for using {partner-product-short-name} on AWS
+// Provide post-deployment best practices for using the technology on AWS, including considerations such as migrating data, backups, ensuring high performance, high availability, etc. Link to software documentation for detailed information.
+
+For best practices to help you get the intended results from running Windows on Amazon EC2, see the following sites:
+
+* https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/ec2-best-practices.html[Best practices for Windows on Amazon EC2].
+* https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/iis-best-practices/ba-p/1241577[IIS Best Practices]
+* https://docs.microsoft.com/en-us/iis/get-started/whats-new-in-iis-10-version-1709/new-features-introduced-in-iis-10-1709[New Features Introduced in IIS 10.0 Version 1709].

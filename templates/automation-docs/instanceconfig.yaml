@@ -1,0 +1,206 @@
+---
+schemaVersion: "0.3"
+description: "Configure Instances on Launch"
+assumeRole: "{{AutomationAssumeRole}}"
+parameters:
+  ASGName:
+    description: "Auto Scaling Group Name"
+    type: "String"
+  ConfigBucket:
+    description: "Bucket Containing Mof Files"
+    type: "String"
+  InstanceId:
+    description: "Id of Instance"
+    type: "String"
+  LCHName:
+    description: "Life Cycle Hook Name"
+    type: "String"
+  AutomationAssumeRole:
+    default: ""
+    description: "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    type: "String" 
+mainSteps:
+  - name: waitUntilInstanceStateRunning
+    action: aws:waitForAwsResourceProperty
+    timeoutSeconds: 600
+    inputs:
+      Service: ec2
+      Api: DescribeInstanceStatus
+      InstanceIds:
+        - "{{InstanceId}}"
+      PropertySelector: "$.InstanceStatuses[0].InstanceState.Name"
+      DesiredValues:
+        - running
+  - name: assertInstanceStateRunning
+    action: aws:assertAwsResourceProperty
+    inputs:
+      Service: ec2
+      Api: DescribeInstanceStatus
+      InstanceIds:
+        - "{{InstanceId}}"
+      PropertySelector: "$.InstanceStatuses[0].InstanceState.Name"
+      DesiredValues:
+        - running
+  - name: "setNameTag"
+    action: aws:runCommand
+    onFailure: "step:terminateconfigurator"
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+        CloudWatchLogGroupName: "/gMSAConfigurator"
+      Parameters:
+        commands: 
+          - |
+             Import-Module AWSPowerShell
+             $instanceid = (Invoke-RestMethod -Method Get -Uri http://169.254.169.254/latest/meta-data/instance-id)
+             New-EC2Tag -Resource $instanceId -Tag @{Key="Name";Value=$env:COMPUTERNAME}
+  - name: "installCloudWatchAgent"
+    action: aws:runCommand
+    onFailure: step:abandonHookAction
+    inputs:
+      DocumentName: AWS-ConfigureAWSPackage
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        action:
+          - "Install"
+        installationType:
+          - "Uninstall and reinstall"
+        name:
+          - "AmazonCloudWatchAgent"
+        version:
+          - "latest"
+  - name: "configureCloudWatchAgent"
+    action: aws:runCommand
+    onFailure: step:abandonHookAction
+    inputs:
+      DocumentName: AmazonCloudWatch-ManageAgent
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        action:
+          - "configure"
+        mode:
+          - 'ec2'
+        optionalConfigurationLocation:
+          - 'AmazonCloudWatch-windows'
+        optionalConfigurationSource:
+          - 'ssm'
+        optionalRestart:
+          - 'yes'
+  - name: "applyDomainJoin"
+    action: aws:runCommand
+    onFailure: step:abandonHookAction
+    inputs:
+      DocumentName: AWS-ApplyDSCMofs
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        MofsToApply:
+          - !Sub "s3:{{ConfigBucket}}:DomainJoin.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:DomainJoinSample
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "True"
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+  - name: "applyDomainIIS"
+    action: aws:runCommand
+    onFailure: step:abandonHookAction
+    inputs:
+      DocumentName: AWS-ApplyDSCMofs
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        MofsToApply:
+          - !Sub "s3:{{ConfigBucket}}:WebSite.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:WebsiteSample
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "True"
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+  - name: "applyLogonMessage"
+    action: aws:runCommand
+    onFailure: step:abandonHookAction
+    inputs:
+      DocumentName: AWS-ApplyDSCMofs
+      InstanceIds: 
+        - "{{InstanceId}}"
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: "true"
+      Parameters:
+        MofsToApply:
+          - !Sub "s3:{{ConfigBucket}}:WebSite.mof"
+        ServicePath:
+          - default
+        MofOperationMode:
+          - Apply
+        ComplianceType:
+          - Custom:WebsiteSample
+        ModuleSourceBucketName:
+          - "NONE"
+        AllowPSGalleryModuleSource:
+          - "True"
+        RebootBehavior:
+          - "AfterMof"
+        UseComputerNameForReporting:
+          - "False"
+        EnableVerboseLogging:
+          - "False"
+        EnableDebugLogging:
+          - "False"
+  - name: "completeHookAction"
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: autoscaling
+      Api: CompleteLifecycleAction
+      AutoScalingGroupName: "{{ASGName}}"
+      InstanceId: "{{InstanceId}}"
+      LifecycleActionResult: CONTINUE
+      LifecycleHookName: "{{LCHName}}"
+  - name: "abandonHookAction"
+    action: aws:executeAwsApi
+    isEnd: true
+    inputs:
+      Service: autoscaling
+      AutoScalingGroupName: "{{ASGName}}"
+      InstanceId: "{{InstanceId}}"
+      LifecycleActionResult: ABANDON
+      LifecycleHookName: "{{LCHName}}"

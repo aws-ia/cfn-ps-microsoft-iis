@@ -1,0 +1,40 @@
+
+.Active Directory information
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Domain DNS name
+(`DomainDNSName`)|`example.com`|Fully qualified domain name (FQDN).|Domain NetBIOS name
+(`DomainNetBIOSName`)|`EXAMPLE`|NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows.|Domain administrator name
+(`DomainAdminUser`)|`Admin`|User name for the account that will be used as domain administrator. This is separate from the default Administrator account.|Domain administrator password
+(`DomainAdminPassword`)|`**__Requires input__**`|Password for the domain administrator. It must be at least 8 characters and contain letters, numbers, and symbols.
+|===
+.Auto Scaling group / Application Load Balancer configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Auto Scaling group desired capacity
+(`ASGDesiredCapacity`)|`**__Requires input__**`|Desired capacity of the Auto Scaling group.|Auto Scaling group maximum size
+(`ASGMaxSize`)|`**__Requires input__**`|Maximum instance size for the Auto Scaling group.|Auto Scaling group minimum size
+(`ASGMinSize`)|`**__Requires input__**`|Minimum instance size for the Auto Scaling group.|Elastic Load Balancing scheme
+(`ELBSchemeParameter`)|`internet-facing`|Choose whether the Elastic Load Balancer is public or private.|Elastic Load Balancer CIDR range
+(`WebAccessCIDR`)|`**__Requires input__**`|The CIDR IP range that is permitted to access the Elastic Load Balancers.|IIS server instance type
+(`IISServerInstanceType`)|`t3.2xlarge`|Amazon EC2 instance type for the second Active Directory instance.
+|===
+.Network configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|VPC ID for workload
+(`VPCID`)|`**__Requires input__**`|ID of the VPC (e.g., vpc-0343606e).|Security group with access to domain
+(`DomainMemberSecurityGroup`)|`**__Requires input__**`|Choose the EC2 security group that allows for Active Directory communication.|Private subnet
+(`PrivateSubnet1ID`)|`**__Requires input__**`|ID of private subnet 1 in Availability Zone 1 for the EC2 target group (e.g., subnet-a0246dcd).|Private subnet
+(`PrivateSubnet2ID`)|`**__Requires input__**`|ID of private subnet 2 in Availability Zone 2 for the EC2 target group (e.g., subnet-a0246dcd).|Elastic Load Balancer subnet
+(`ELBSubnet1ID`)|`**__Requires input__**`|ID of subnet 1 in Availability Zone 1 where the Application Load Balancer will reside (e.g., subnet-a0246dcd). If the Elastic Load Balancer faces the internet, choose a public subnet. Otherwise, choose a private subnet.|Elastic Load Balancer subnet
+(`ELBSubnet2ID`)|`**__Requires input__**`|ID of subnet 2 in Availability Zone 2 where the Application Load Balancer will reside (e.g., subnet-a0246dcd). If the Elastic Load Balancer faces the internet, choose a public subnet. Otherwise, choose a private subnet.
+|===
+.AWS Quick Start configuration
+[width="100%",cols="16%,11%,73%",options="header",]
+|===
+|Parameter label (name) |Default value|Description|Quick Start S3 bucket name
+(`QSS3BucketName`)|`aws-quickstart`|S3 bucket name for the Quick Start assets. This name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).|Quick Start S3 bucket Region
+(`QSS3BucketRegion`)|`us-east-1`|AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. Specify this value when using your own S3 bucket.|Quick Start S3 key prefix
+(`QSS3KeyPrefix`)|`quickstart-microsoft-iis/`|S3 key prefix for the Quick Start assets. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/).
+|===
