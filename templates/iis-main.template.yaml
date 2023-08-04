@@ -541,8 +541,8 @@ Resources:
         - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/cfn-ps-microsoft-activedirectory/templates/${QSADTemplate}
         - QSADTemplate: !If
             - UseADonEC2
-            - ad-1.template
-            - ad-3.template
+            - ad-1.template.yaml
+            - ad-3.template.yaml
           S3Region: !If
             - UsingDefaultBucket
             - !Ref AWS::Region
@@ -588,7 +588,7 @@ Resources:
     Properties:
       TemplateURL:
         Fn::Sub:
-          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/cfn-ps-microsoft-rdgateway/templates/rdgw-domain.template'
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/cfn-ps-microsoft-rdgateway/templates/rdgw-domain.template.yaml'
           - S3Region: !If
               - UsingDefaultBucket
               - !Ref AWS::Region
