@@ -390,7 +390,7 @@ Parameters:
   QSS3BucketName:
     AllowedPattern: '^[a-z0-9]+[a-z0-9\.\-]*[a-z0-9]+$'
     ConstraintDescription: Can include numbers, lowercase letters, uppercase letters, and hyphens (-). However, it cannot start or end with a hyphen (-).
-    Default: aws-ia-us-east-1
+    Default: aws-ia
     Description: S3 bucket name for the Quick Start assets. This name
       can include numbers, lowercase letters, uppercase letters, and hyphens (-).
       It cannot start or end with a hyphen (-).
@@ -475,7 +475,7 @@ Parameters:
     Type: String
 Conditions:
   AppInsightsEnabled: !Equals [!Ref SetupAppInsightsMonitoring, true]
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia']
   IncludeRDGW: !Not
     - !Equals
       - !Ref NumberOfRDGWHosts
