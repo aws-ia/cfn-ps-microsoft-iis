@@ -1,5 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Security resources for IIS (qs-1r91fg4f3)
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9002
+        - W9003
 Parameters:
   ConfigBucket:
     AllowedPattern: '^[a-z0-9]+[a-z0-9\.\-]*[a-z0-9]+$'

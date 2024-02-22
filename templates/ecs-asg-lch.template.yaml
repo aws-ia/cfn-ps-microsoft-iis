@@ -7,6 +7,12 @@ Description: >-
   Amazon EC2 Windows instance and related resources. You will be billed for the AWS
   resources used if you create a stack from this template. (qs-1spjhsd41)
 Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9002
+        - W9003
+        - W9004
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:

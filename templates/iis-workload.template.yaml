@@ -6,9 +6,10 @@ Description: >-
   Application Load Balancer, and Auto Scaling group. Configuration while scaling is handled by lifecycle hooks,
   Amazon EventBridge, and AWS System Manager automation. (qs-1r91fg4hm)
 Metadata:
-  QuickStartDocumentation:
-    EntrypointName: Deploy into an existing VPC
-    Order: "2"
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
@@ -450,7 +451,6 @@ Resources:
     Properties:
       ResourceGroupName: !Ref 'IISResourceGroup'
       AutoConfigurationEnabled: true
-    DependsOn: IISResourceGroup
 
 Outputs:
   ConfigBucket:

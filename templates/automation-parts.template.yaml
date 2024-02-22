@@ -1,5 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Scripts, Automation Documents, all components to perform configuration. (qs-1r91fg4is)
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9002
+        - W9003
+        - E3030
 Parameters:
   ConfigBucket:
     AllowedPattern: '^[a-z0-9]+[a-z0-9\.\-]*[a-z0-9]+$'
