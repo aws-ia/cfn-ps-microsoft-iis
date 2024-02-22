@@ -7,9 +7,10 @@ Description: >-
   This template creates Amazon EC2 Windows instances, ECS containers and related resources. You will
   be billed for the AWS resources used if you create a stack from this template. (qs-1r91fg4hu)
 Metadata:
-  QuickStartDocumentation:
-    EntrypointName: Deploy into a new VPC
-    Order: "1"
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:

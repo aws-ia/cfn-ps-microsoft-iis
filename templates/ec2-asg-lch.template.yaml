@@ -3,6 +3,11 @@ Description: Launch a scalable IIS environment based on a launch template, Appli
   Load Balancer and Auto Scaling Group. Scaling handled by Lifecycle Hooks, EventBridge,
   and AWS Systems Manager. (qs-1r91fg4if)
 Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9002
+        - W9003
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
