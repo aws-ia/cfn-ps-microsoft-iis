@@ -104,7 +104,7 @@ Resources:
                   cfnresponse.send(event, context, status, {}, object_url)
       Handler: index.handler
       Role: !Ref 'WriteS3LambdaRoleArn'
-      Runtime: python3.7
+      Runtime: python3.12
       Timeout: 240
   WriteDomainJoinIISMOF:
     Type: Custom::WriteMOFFile
