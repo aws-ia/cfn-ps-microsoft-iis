@@ -9,3 +9,8 @@
 	path = submodules/cfn-ps-microsoft-rdgateway
 	url = https://github.com/aws-ia/cfn-ps-microsoft-rdgateway.git
 	branch = main
+[submodule "submodules/cfn-ps-microsoft-activedirectory"]
+	path = submodules/cfn-ps-microsoft-activedirectory
+	url = https://github.com/aws-solutions-library-samples/cfn-ps-microsoft-activedirectory.git
+	branch = main
+	
